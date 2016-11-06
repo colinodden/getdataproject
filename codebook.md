@@ -8,14 +8,12 @@ output: html_document
 # Manifest
 Project contents are as follows
 ## run_analysis.R
-Operates on the source data:
-* applies variable labels for all variables,
-* merges, via appending, the fully-labeled 'test' and 'train' data sets,
-* subsets to only include means and standard deviations of each measure,
-* saves this data as "data_big.txt",
-* summarizes the data comprising "data_big.txt" by taking mean of each mean/standard deviation,
-      for each Subject X Activity (thus, means are not column means but rather means across SubjXAct)
-* saves this data as "data_tidy.txt"
+Operating on the source data:
+1. Applies variable labels for all variables;
+2. Merges, via appending, the fully-labeled 'test' and 'train' data sets and saves the result as an interim file;
+3. Subsets to only include means and standard deviations of each measure,
+4. Summarizes the data in #3 by taking the mean of each mean/standard deviation, for each Subject X Activity (thus, means are not column means but rather means across SubjXAct)
+5. Saves this data as "data_tidy.txt"
 
 ## data_big.txt
 Produced by run_analysis.R
