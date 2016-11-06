@@ -1,98 +1,101 @@
-#      This is R script 'run_analysis.R'
-# Single script -- requires() and includes() no other programs
-# Libraries required:
-#   tools
-# User must set only one variable: the value specified by setwd()
-#  All paths are relative; only the base directory must be set
-# Outputs is a file 'tidydata.txt'
-setwd("/Volumes/WYRK/BOX/R/getdata/project")
+## This is run_analysis.R
+## It operates on the Human Activity Recognition data held by the University of California, Irvine
+## It performs the following actions:
+### Merges the training and the test sets to create one data set.
+### Extracts only the measurements on the mean and standard deviation for each measurement.
+### Uses descriptive activity names to name the activities in the data set
+### Appropriately labels the data set with descriptive variable names.
+### From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+## November 2016, Colin Odden, colin.odden@osumc.edu
 
-# name our outputs here
-bigdata <- "./data/data_big.txt"
-tidydata <- "./data/data_tidy.txt"
+# 0.1 Housekeeping
+rm(list=ls())
 
-# create data subdirectory, if it doesn't exist
-if (!file.exists("data")) { dir.create("data")}
+require(dplyr)
+require(tidyr)
+require(reshape2)
+require(tools)
 
-# does the data appear to exist?
-# if not, download it to data.zip. Unzip it without subdirectories (unzip flat). Remove the zip.
-if (!file.exists("./data/X_test.txt")) {
-  target <- "./data.zip"
-  url <- "http://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-  download.file(url, destfile=target)
-  unzip("./data.zip", exdir="./data", junkpaths=TRUE) # NB: Unzips flat!
-  unlink("./data.zip")
-  library(tools)       # for md5 checksum
-  sink("download_metadata.txt")
-  print("Download date:")
-  print(Sys.time() )
-  print("Download URL:")
-  print(target_url)
-  print("Downloaded file Information")
-  print(file.info(target))
-  print("Downloaded file md5 Checksum")
-  print(md5sum(target))
-  sink()  
-}
+dir_root <- "C:\\Users\\colin\\Documents\\"
+setwd(dir_root)
+debug <- TRUE
 
-# read some files!
-df_train <- read.table("./data/X_train.txt")
-dim(df_train) # 7352*561
-head(df_train)
-labels_train <- read.table("./data/y_train.txt")
-table(labels_train)
-trainSubject <- read.table("./data/subject_train.txt")
-df_test <- read.table("./data/X_test.txt")
-labels_test <- read.table("./data/y_test.txt") 
-table(labels_test) 
-testSubject <- read.table("./data/subject_test.txt")
+# 0.2 Acquisition
+url <- "http://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+file_zip = "dataset.zip"
+download.file(url, file_zip, mode="wb")
+unzip (file_zip) # default unzip path -- yields "dir_root/UCI HAR Dataset/"
 
-# merge some files!
-df_joined <- rbind(df_train, df_test)
-label_joined <- rbind(labels_train, labels_test)
-joinSubject <- rbind(trainSubject, testSubject)
+# 0.3 Load files
+train_x <-   read.table("UCI HAR Dataset/train/X_train.txt", comment.char="")
+train_y <-   read.table("UCI HAR Dataset/train/y_train.txt", col.names=c("activity"))
+test_x <-    read.table("UCI HAR Dataset/test/X_test.txt", comment.char="")
+test_y <-    read.table("UCI HAR Dataset/test/y_test.txt", col.names=c("activity"))
+train_sub <- read.table("UCI HAR Dataset/train/subject_train.txt", col.names=c("subject"))
+test_sub <-  read.table("UCI HAR Dataset/test/subject_test.txt", col.names=c("subject"))
+features <-  read.table("UCI HAR Dataset/features.txt", col.names=c("id","label"))
+activities <- read.table("UCI HAR Dataset/activity_labels.txt", col.names=c("id", "name"))
 
-# read some indicators, clean them, apply them.
-features <- read.table("./data/features.txt")
-meanStdIndices <- grep("mean\\(\\)|std\\(\\)", features[, 2])
-df_joined <- df_joined[, meanStdIndices]
-names(df_joined) <- gsub("-", "", names(df_joined))
-names(df_joined) <- gsub("\\(\\)", "", features[meanStdIndices, 2])
-names(df_joined) <- gsub("mean", "Mean", names(df_joined))
-names(df_joined) <- gsub("std", "Std", names(df_joined))
+# 0.4 Assign colnames to train_x
+colnames(train_x) <- features[,2]
+colnames(test_x) <- features[,2]
 
-activities <- read.table("./data/activity_labels.txt")
-activities[, 2] <- tolower(gsub("_", "", activities[, 2]))
-substr(activities[2, 2], 8, 8) <- toupper(substr(activities[2, 2], 8, 8))
-substr(activities[3, 2], 8, 8) <- toupper(substr(activities[3, 2], 8, 8))
-label_activities <- activities[label_joined[, 1], 2]
-label_joined[, 1] <- label_activities
-names(label_joined) <- "Activity"
+# 1 Merge train and test datasets
+## Merge test and train wide
+data_test <- cbind(test_x, test_sub, test_y)
+if(debug) str(data_test)
+data_train <- cbind(train_x, train_sub, train_y)
+if(debug) str(data_train)
+## merge them both long
+data_all <- rbind(data_test, data_train)
+if(debug) str(data_all)
+## use 'features' for labelling
+features_vect <- c(as.vector(features[,"label"]), "subject","activity") # gets crude names like "fBodyGyro-bandsEnergy()-41,48"
 
-names(joinSubject) <- "Subject"
-df_clean <- cbind(joinSubject, label_joined, df_joined)
-dim(df_clean) # 10299*68
-# write out the 'big' data
-write.table(df_clean, bigdata)
+# 2 Create dataset comprising only mean/sd for each measurement
+#features_clean <- gsub("\(","",features_vect)
+features_keep <- grepl("mean|std|subject|activity", features_vect) & !grepl("Freq", features_vect)
+data_use = data_all[, features_keep]
+if(debug) str(data_use)
 
-# Produce "tidy" data: mean of each column by subject/activity
-# I used nested loops. Were this Stata, I'd use 'by' -- can't find R equiv.
-num_subjects <- length(table(joinSubject))
-num_activities <- dim(activity)[1]
-num_columns <- dim(df_clean)[2]
-result <- as.data.frame(
-    matrix(NA, nrow=num_subjects*num_activities, ncol=num_columns))
-colnames(result) <- colnames(df_clean)
-row <- 1
-for(i in 1:num_subjects) {
-  for(j in 1:num_activities) {
-    result[row, 1] <- sort(unique(joinSubject)[, 1])[i]
-    result[row, 2] <- activity[j, 2]
-    bool1 <- i == df_clean$subject
-    bool2 <- activity[j, 2] == df_clean$activity
-    result[row, 3:num_columns] <- colMeans(df_clean[bool1&bool2, 3:num_columns])
-    row <- row + 1 # no increment operator in R!
+# 3 Label activities meaningfully
+act_tmp <- tolower(activities[,"name"])
+act_tmp <- gsub("_","\ ",act_tmp)
+
+# 4 Create appropriately descriptive variable names
+## I could have done this better -- there's a mix of CamelCase and hyphens here
+colNames <- colnames(data_use)
+for (i in 1:length(colNames)) {
+  colNames[i] = gsub("\\()","", colNames[i])
+  colNames[i] = gsub("-std","-StdDev", colNames[i])
+  colNames[i] = gsub("-mean","-Mean", colNames[i])
+  colNames[i] = gsub("^(t)","time-", colNames[i])
+  colNames[i] = gsub("^(f)","freq-", colNames[i])
+  colNames[i] = gsub("([Gg]ravity)","Gravity", colNames[i])
+  colNames[i] = gsub("([Bb]ody[Bb]ody|[Bb]ody)","Body", colNames[i])
+  colNames[i] = gsub("[Gg]yro","Gyro", colNames[i])
+  colNames[i] = gsub("AccMag","AccMagnitude", colNames[i])
+  colNames[i] = gsub("Acc", "-Acceleration", colNames[i])
+  colNames[i] = gsub("([Bb]odyaccjerkmag)","BodyAccJerkMagnitude", colNames[i])
+  colNames[i] = gsub("JerkMag","JerkMagnitude", colNames[i])
+  colNames[i] = gsub("GyroMag","GyroMagnitude", colNames[i])
   }
-}
-# write the 'tidy' dataset
-write.table(result, tidydata)
+colNames
+
+write.table(data_use, "data_merged.txt", row.name=FALSE)
+
+
+# 5 Create a tidy version of the dataset
+## per Wickham(2014), this is equivalent to Codd's 3rd normal form for relational data:
+##  1. Each variable forms a column.
+##  2. Each observation forms a row.
+##  3. Each type of observational unit forms a table.
+
+# First, tackle collapsing to means at the subj-act level
+data_melt <- melt(data_use, id = c("subject", "activity")) ## reshape long so we can easily summarize across act*var*val
+data_collapsed <- dcast(data_melt, subject + activity ~ variable, mean)
+dim(data_collapsed)
+
+write.table(data_collapsed, "data_collapsed.txt", row.name=FALSE)
+
+# fin!
