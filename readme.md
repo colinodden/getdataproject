@@ -35,3 +35,10 @@ Values unaltered from the UCI source.
 Produced by run_analysis.R
 Contains the mean, for each subjectXactivity pair, of each indicator in data_merged.
 Thus, this is a summarization of all indicators in data_merged.
+
+# Caveats:
+* Must be online to execute run_analysis.R - the program downloads data from a web site
+* R must have write access in the working directory set by the user.
+
+# References
+I owe a debt of gratitude to the StackExchange R boards. I also took a bit of clever code from http://rstudio-pubs-static.s3.amazonaws.com/13879_d921eeda39c44faca03b69ee64ded40f.html
